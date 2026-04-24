@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+  <meta charset="UTF-8">
+  <title>ShopMicro</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: sans-serif; background: #f5f5f5; }
+    header { background: #222; color: white; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }
+    h1 { font-size: 1.4rem; }
+    .cart-btn { background: #ff6b35; border: none; color: white; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
+    main { max-width: 1100px; margin: 2rem auto; padding: 0 1rem; }
+    h2 { margin-bottom: 1rem; font-size: 1.2rem; color: #333; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1.2rem; }
+    .card { background: white; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); padding: 1.2rem; }
+    .card h3 { font-size: 1rem; margin-bottom: 0.4rem; }
+    .card p { color: #666; font-size: 0.85rem; margin-bottom: 0.8rem; }
+    .price { font-size: 1.1rem; font-weight: bold; color: #222; margin-bottom: 0.8rem; }
+    .stock { font-size: 0.8rem; color: #888; margin-bottom: 0.8rem; }
+    .buy-btn { width: 100%; background: #222; color: white; border: none; padding: 0.5rem; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
+    .buy-btn:hover { background: #444; }
+    .buy-btn:disabled { background: #ccc; cursor: not-allowed; }
+    #status { margin-top: 1.5rem; padding: 1rem; background: #e8f4fd; border-radius: 8px; font-size: 0.9rem; color: #1a5276; display: none; }
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; }
+    .modal-overlay.active { display: flex; align-items: center; justify-content: center; }
+    .modal { background: white; border-radius: 12px; padding: 2rem; width: 90%; max-width: 440px; }
+    .modal h3 { margin-bottom: 1rem; }
+    .modal input { width: 100%; padding: 0.6rem; margin-bottom: 0.8rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem; }
+    .modal-btns { display: flex; gap: 0.8rem; }
+    .modal-btns button { flex: 1; padding: 0.6rem; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
+    .btn-confirm { background: #222; color: white; }
+    .btn-cancel { background: #eee; color: #333; }
+    #log { margin-top: 1rem; font-size: 0.8rem; color: #555; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🛒 ShopMicro</h1>
+    <button class="cart-btn" onclick="document.getElementById('cartModal').classList.add('active')">Carret (0)</button>
+  </header>
+  <main>
+    <h2>Productes disponibles</h2>
+    <div id="products" class="grid"><p>Carregant...</p></div>
+    <div id="status"></div>
+    <div id="log"></div>
+  </main>
+
+  <div id="cartModal" class="modal-overlay">
+    <div class="modal">
+      <h3>Finalitzar compra</h3>
+      <input id="order-user" type="text" placeholder="El teu nom d'usuari" value="user1">
+      <input id="order-product" type="text" placeholder="Product ID" readonly>
+      <input id="order-qty" type="number" placeholder="Quantitat" value="1" min="1">
+      <div class="modal-btns">
+        <button class="btn-confirm" onclick="placeOrder()">Comprar</button>
+        <button class="btn-cancel" onclick="document.getElementById('cartModal').classList.remove('active')">Cancel·lar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API = '/api';
+    let selectedProduct = null;
+
+    async function loadProducts() {
+      const div = document.getElementById('products');
+      try {
+        const r = await fetch(API + '/products/');
+        const data = await r.json();
+        if (!data.length) { div.innerHTML = '<p>No hi ha productes.</p>'; return; }
+        div.innerHTML = data.map(p => `
+          <div class="card">
+            <h3>${p.name}</h3>
+            <p>${p.description || 'Producte tecnològic'}</p>
+            <div class="price">${p.price} €</div>
+            <div class="stock">Stock: ${p.stock} unitats</div>
+            <button class="buy-btn" onclick="openCart(${p.id}, '${p.name}', ${p.stock})" ${p.stock === 0 ? 'disabled' : ''}>
+              ${p.stock === 0 ? 'Sense stock' : 'Afegir i comprar'}
+            </button>
+          </div>`).join('');
+        log('✅ Productes carregats des de product-service (via Redis cache)');
+      } catch(e) {
+        div.innerHTML = '<p>Error carregant productes.</p>';
+        log('❌ Error: ' + e.message);
+      }
+    }
+
+    function openCart(id, name, stock) {
+      selectedProduct = id;
+      document.getElementById('order-product').value = id;
+      document.getElementById('cartModal').classList.add('active');
+    }
+
+    async function placeOrder() {
+      const user_id = document.getElementById('order-user').value;
+      const quantity = parseInt(document.getElementById('order-qty').value);
+      if (!user_id || !quantity) return;
+      try {
+        const r = await fetch(API + '/orders/', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ user_id, product_id: selectedProduct, quantity })
+        });
+        const d = await r.json();
+        document.getElementById('cartModal').classList.remove('active');
+        showStatus(r.ok ? `✅ Comanda creada! ID: ${d.order_id || d.id}. Notificació enviada a RabbitMQ.` : `❌ Error: ${d.error}`);
+        if (r.ok) loadProducts();
+        log('📦 Comanda publicada → RabbitMQ → notification-service');
+      } catch(e) {
+        showStatus('❌ Error de xarxa: ' + e.message);
+      }
+    }
+
+    function showStatus(msg) {
+      const s = document.getElementById('status');
+      s.textContent = msg; s.style.display = 'block';
+      setTimeout(() => s.style.display = 'none', 5000);
+    }
+
+    function log(msg) {
+      const d = document.getElementById('log');
+      d.innerHTML = `<small>${new Date().toLocaleTimeString()} — ${msg}</small><br>` + d.innerHTML;
+    }
+
+    loadProducts();
+  </script>
+</body>
+</html>
