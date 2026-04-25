@@ -40,6 +40,8 @@
 │ db-products      │ db-orders       │ notification-  │
 │ (MySQL 8.0)      │ (MySQL 8.0)     │ service        │
 └──────────────────┴─────────────────┴────────────────┘
+<img width="827" height="1169" alt="shopmicro_arquitectura" src="https://github.com/user-attachments/assets/5a941395-a40f-4091-bcd9-9fd9639d42c8" />
+
 ```
  
 ---
