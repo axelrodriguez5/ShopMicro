@@ -1,0 +1,235 @@
+version: "3.8"
+
+# =============================================================
+#  ShopMicro — Docker Compose (Fase 1: Entorn Desenvolupament)
+# =============================================================
+
+secrets:
+  db_root_password:
+    file: ./secrets/db_root_password.txt
+
+networks:
+  frontend-net:
+    driver: bridge
+  backend-net:
+    driver: bridge
+  db-net:
+    driver: bridge
+  mq-net:
+    driver: bridge
+
+volumes:
+  db_products_data:
+  db_orders_data:
+  rabbitmq_data:
+  redis_data:
+
+services:
+
+  # ─────────────────────────────────────────
+  # INFRAESTRUCTURA (bases de dades, cache, cua)
+  # ─────────────────────────────────────────
+
+  db-products:
+    image: mysql:8.0
+    container_name: db-products
+    environment:
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/db_root_password
+      MYSQL_DATABASE: products_db
+      MYSQL_USER: shopuser
+      MYSQL_PASSWORD: shoppass
+    secrets:
+      - db_root_password
+    volumes:
+      - db_products_data:/var/lib/mysql
+    networks:
+      - db-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "shopuser", "-pshoppass"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+  db-orders:
+    image: mysql:8.0
+    container_name: db-orders
+    environment:
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/db_root_password
+      MYSQL_DATABASE: orders_db
+      MYSQL_USER: shopuser
+      MYSQL_PASSWORD: shoppass
+    secrets:
+      - db_root_password
+    volumes:
+      - db_orders_data:/var/lib/mysql
+    networks:
+      - db-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "shopuser", "-pshoppass"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+  cache:
+    image: redis:7-alpine
+    container_name: cache
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - backend-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  message-queue:
+    image: rabbitmq:3-management-alpine
+    container_name: message-queue
+    environment:
+      RABBITMQ_DEFAULT_USER: shopuser
+      RABBITMQ_DEFAULT_PASS: shoppass
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    ports:
+      - "15672:15672"   # Interfície web RabbitMQ (dev only)
+    networks:
+      - mq-net
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────
+  # MICROSERVEIS D'APLICACIÓ
+  # ─────────────────────────────────────────
+
+  product-service:
+    build: ./product-service
+    container_name: product-service
+    environment:
+      DB_HOST: db-products
+      DB_USER: shopuser
+      DB_PASSWORD: shoppass
+      DB_NAME: products_db
+      REDIS_HOST: cache
+      REDIS_PORT: 6379
+      REDIS_TTL: 60
+    networks:
+      - backend-net
+      - db-net
+    depends_on:
+      db-products:
+        condition: service_healthy
+      cache:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:5001/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  order-service:
+    build: ./order-service
+    container_name: order-service
+    environment:
+      DB_HOST: db-orders
+      DB_USER: shopuser
+      DB_PASSWORD: shoppass
+      DB_NAME: orders_db
+      RABBITMQ_HOST: message-queue
+      RABBITMQ_USER: shopuser
+      RABBITMQ_PASS: shoppass
+      PRODUCT_SERVICE_URL: http://product-service:5001
+    networks:
+      - backend-net
+      - db-net
+      - mq-net
+    depends_on:
+      db-orders:
+        condition: service_healthy
+      message-queue:
+        condition: service_healthy
+      product-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:5002/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 25s
+    restart: unless-stopped
+
+  user-service:
+    build: ./user-service
+    container_name: user-service
+    environment:
+      DB_HOST: db-orders
+      DB_USER: shopuser
+      DB_PASSWORD: shoppass
+      DB_NAME: orders_db
+      JWT_SECRET: shopmicro_jwt_secret_2024
+    networks:
+      - backend-net
+      - db-net
+    depends_on:
+      db-orders:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:5003/users || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  notification-service:
+    build: ./notification-service
+    container_name: notification-service
+    environment:
+      RABBITMQ_HOST: message-queue
+      RABBITMQ_USER: shopuser
+      RABBITMQ_PASS: shoppass
+    networks:
+      - mq-net
+    depends_on:
+      message-queue:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────
+  # CAPA DE PRESENTACIÓ
+  # ─────────────────────────────────────────
+
+  frontend:
+    build: ./frontend
+    container_name: frontend
+    networks:
+      - frontend-net
+    restart: unless-stopped
+
+  api-gateway:
+    build: ./api-gateway
+    container_name: api-gateway
+    ports:
+      - "8080:80"       # Punt d'entrada principal: http://localhost:8080
+    networks:
+      - frontend-net
+      - backend-net
+    depends_on:
+      - frontend
+      - product-service
+      - order-service
+      - user-service
+    restart: unless-stopped
