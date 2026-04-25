@@ -346,8 +346,3 @@ Si tens problemes:
 3. Reinicia els contenidors: `docker compose restart`
 4. Revisa la secció Troubleshooting arriba
 ---
- 
-**Data de creació**: Abril 2024
-**Estat**: ✅ Fase 1 completada
-**Versió de Docker Compose**: v3.8
- 
