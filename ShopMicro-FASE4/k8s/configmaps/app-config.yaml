@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: shopmicro
+data:
+  # Configuracions no sensibles compartides
+  DB_USER: "appuser"
+  DB_PRODUCTS_HOST: "db-products"
+  DB_ORDERS_HOST: "db-orders"
+  DB_PRODUCTS_NAME: "products_db"
+  DB_ORDERS_NAME: "orders_db"
+  REDIS_HOST: "cache"
+  MQ_HOST: "message-queue"

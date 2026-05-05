@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: db-products
+  namespace: shopmicro
+  labels:
+    app: db-products
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: db-products
+  template:
+    metadata:
+      labels:
+        app: db-products
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:8.0
+        ports:
+        - containerPort: 3306
+        env:
+        - name: MYSQL_DATABASE
+          valueFrom: { configMapKeyRef: { name: app-config, key: DB_PRODUCTS_NAME } }
+        - name: MYSQL_USER
+          valueFrom: { configMapKeyRef: { name: app-config, key: DB_USER } }
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom: { secretKeyRef: { name: db-credentials, key: root-password } }
+        - name: MYSQL_PASSWORD
+          valueFrom: { secretKeyRef: { name: db-credentials, key: user-password } }
+        readinessProbe:
+          exec:
+            command: ["mysqladmin", "ping", "-h", "localhost"]
+          initialDelaySeconds: 20
+          periodSeconds: 10
+        livenessProbe:
+          exec:
+            command: ["mysqladmin", "ping", "-h", "localhost"]
+          initialDelaySeconds: 60
+          periodSeconds: 30

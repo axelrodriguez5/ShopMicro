@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: db-orders
+  namespace: shopmicro
+  labels:
+    app: db-orders
+spec:
+  selector:
+    app: db-orders
+  ports:
+  - port: 3306
+    targetPort: 3306

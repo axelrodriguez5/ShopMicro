@@ -1,0 +1,120 @@
+services:
+  # ============== BASES DE DADES I CUES ==============
+  db-products:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass123
+      MYSQL_DATABASE: products_db
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: apppass123
+    volumes:
+      - db_products_data:/var/lib/mysql
+    networks:
+      - data-net
+
+  db-orders:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass123
+      MYSQL_DATABASE: orders_db
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: apppass123
+    volumes:
+      - db_orders_data:/var/lib/mysql
+    networks:
+      - data-net
+
+  cache:
+    image: redis:7-alpine
+    networks:
+      - data-net
+    volumes:
+      - cache_data:/data
+
+  message-queue:
+    image: rabbitmq:3-management
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin123
+    volumes:
+      - mq_data:/var/lib/rabbitmq
+    networks:
+      - data-net
+
+  # ============== MICROSERVEIS ==============
+  product-service:
+    image: arodriguez5/shopmicro-product-service:1.1
+    environment:
+      DB_HOST: db-products
+      DB_USER: appuser
+      DB_PASSWORD: apppass123
+      DB_NAME: products_db
+      REDIS_HOST: cache
+    networks:
+      - backend-net
+      - data-net
+
+  order-service:
+    image: arodriguez5/shopmicro-order-service:1.1
+    environment:
+      DB_PRODUCTS_HOST: db-products
+      DB_ORDERS_HOST: db-orders
+      DB_USER: appuser
+      DB_PASSWORD: apppass123
+      MQ_HOST: message-queue
+      MQ_USER: admin
+      MQ_PASS: admin123
+    networks:
+      - backend-net
+      - data-net
+
+  user-service:
+    image: arodriguez5/shopmicro-user-service:1.1
+    environment:
+      DB_HOST: db-orders
+      DB_USER: appuser
+      DB_PASSWORD: apppass123
+      DB_NAME: orders_db
+      JWT_SECRET: clausecreta_2asix
+    networks:
+      - backend-net
+      - data-net
+
+  notification-service:
+    image: arodriguez5/shopmicro-notification-service:1.1
+    environment:
+      MQ_HOST: message-queue
+      MQ_USER: admin
+      MQ_PASS: admin123
+    networks:
+      - data-net
+
+  # ============== GATEWAY I FRONTEND ==============
+  api-gateway:
+    image: arodriguez5/shopmicro-api-gateway:1.0
+    networks:
+      - frontend-net
+      - backend-net
+
+  frontend:
+    image: arodriguez5/shopmicro-frontend:1.0
+    ports:
+      - "8080:80"
+    networks:
+      - frontend-net
+
+# ============== XARXES ==============
+networks:
+  frontend-net:
+    driver: bridge
+  backend-net:
+    driver: bridge
+  data-net:
+    driver: bridge
+
+# ============== VOLUMS ==============
+volumes:
+  db_products_data:
+  db_orders_data:
+  cache_data:
+  mq_data:

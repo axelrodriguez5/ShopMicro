@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: shopmicro
+  labels:
+    name: shopmicro
+    project: shopmicro
+    environment: development

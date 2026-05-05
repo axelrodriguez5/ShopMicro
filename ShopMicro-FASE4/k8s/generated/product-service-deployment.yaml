@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: product-service
+  namespace: shopmicro
+  labels:
+    app: product-service
+spec:
+  replicas: 2                                # ← múltiples rèpliques
+  selector:
+    matchLabels:
+      app: product-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0                      # zero downtime
+  template:
+    metadata:
+      labels:
+        app: product-service
+    spec:
+      containers:
+      - name: product-service
+        image: arodriguez5/shopmicro-product-service:1.1
+        imagePullPolicy: Always              # ← important per al rolling update
+        ports:
+        - containerPort: 5000
+        env:
+        - name: DB_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: DB_PRODUCTS_HOST
+        - name: DB_USER
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: DB_USER
+        - name: DB_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: DB_PRODUCTS_NAME
+        - name: REDIS_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: REDIS_HOST
+        - name: DB_PASSWORD                  # ← des del Secret!
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials
+              key: user-password
+        readinessProbe:                      # ← treu el pod de servei si no està llest
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        livenessProbe:                       # ← reinicia el pod si no respon
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3

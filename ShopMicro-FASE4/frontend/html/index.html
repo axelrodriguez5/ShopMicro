@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShopMicro — Botiga Tecnològica</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>ShopMicro</h1>
+        <p class="subtitle">Plataforma de microserveis — 2 ASIX</p>
+        <div id="user-bar">
+            <span id="user-status">No autenticat</span>
+        </div>
+    </header>
+
+    <main>
+        <!-- SECCIÓ 1: USUARIS -->
+        <section class="card">
+            <h2>Usuaris</h2>
+            <div class="form-row">
+                <input type="text" id="username" placeholder="Usuari">
+                <input type="password" id="password" placeholder="Contrasenya">
+                <button onclick="registerUser()">Registrar</button>
+                <button onclick="loginUser()" class="primary">Login</button>
+            </div>
+            <div id="user-result" class="result"></div>
+        </section>
+
+        <!-- SECCIÓ 2: PRODUCTES (FLUX 1) -->
+        <section class="card">
+            <h2> Catàleg de productes</h2>
+            <button onclick="loadProducts()" class="primary">Carregar productes</button>
+            <p class="hint">Demostra el flux de cache: la primera crida ve de la BD, 
+               les següents (durant 60s) venen de Redis.</p>
+            <div id="products-source" class="badge"></div>
+            <div id="products-list"></div>
+        </section>
+
+        <!-- SECCIÓ 3: COMANDES (FLUX 2) -->
+        <section class="card">
+            <h2>Crear comanda</h2>
+            <p class="hint">En crear una comanda: descompta stock, guarda a db-orders 
+               i publica missatge a RabbitMQ → notification-service ho registra al log.</p>
+            <div id="order-form" class="form-row">
+                <select id="product-select">
+                    <option value="">-- Carrega productes primer --</option>
+                </select>
+                <input type="number" id="quantity" value="1" min="1" style="width: 80px;">
+                <button onclick="createOrder()" class="primary">Comprar</button>
+            </div>
+            <div id="order-result" class="result"></div>
+        </section>
+
+        <!-- SECCIÓ 4: HISTORIAL -->
+        <section class="card">
+            <h2> Historial de comandes</h2>
+            <button onclick="loadOrders()">Refrescar historial</button>
+            <div id="orders-list"></div>
+        </section>
+    </main>
+
+    <footer>
+        <p>ShopMicro · Projecte Docker Compose · 2 ASIX</p>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>

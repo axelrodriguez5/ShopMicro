@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  namespace: shopmicro
+  labels:
+    app: api-gateway
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: api-gateway
+  template:
+    metadata:
+      labels:
+        app: api-gateway
+    spec:
+      initContainers:
+      - name: wait-for-microservices
+        image: busybox:1.36
+        command:
+          - sh
+          - -c
+          - |
+            echo "Esperant que product-service estigui llest..."
+            until nslookup product-service.shopmicro.svc.cluster.local; do
+              echo "DNS no resolt encara, esperant 2s..."
+              sleep 2
+            done
+            until nslookup order-service.shopmicro.svc.cluster.local; do
+              sleep 2
+            done
+            until nslookup user-service.shopmicro.svc.cluster.local; do
+              sleep 2
+            done
+            echo "Tots els microserveis disponibles!"
+      containers:
+      - name: api-gateway
+        image: arodriguez5/shopmicro-api-gateway:1.0
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80
+        readinessProbe:
+          httpGet: { path: /, port: 80 }
+          periodSeconds: 5
+        livenessProbe:
+          httpGet: { path: /, port: 80 }
+          periodSeconds: 10

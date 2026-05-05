@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-service
+  namespace: shopmicro
+  labels:
+    app: order-service
+spec:
+  selector:
+    app: order-service
+  ports:
+  - port: 5000
+    targetPort: 5000

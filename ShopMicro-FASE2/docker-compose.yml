@@ -1,0 +1,187 @@
+services:
+  # ============== BASES DE DADES I CUES ==============
+  db-products:
+    image: mysql:8.0
+    container_name: db-products
+    environment:
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/db_root_password
+      MYSQL_DATABASE: products_db
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD_FILE: /run/secrets/db_user_password
+    secrets:
+      - db_root_password
+      - db_user_password
+    volumes:
+      - db_products_data:/var/lib/mysql
+    networks:
+      - data-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  db-orders:
+    image: mysql:8.0
+    container_name: db-orders
+    environment:
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/db_root_password
+      MYSQL_DATABASE: orders_db
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD_FILE: /run/secrets/db_user_password
+    secrets:
+      - db_root_password
+      - db_user_password
+    volumes:
+      - db_orders_data:/var/lib/mysql
+    networks:
+      - data-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  cache:
+    image: redis:7-alpine
+    container_name: cache
+    networks:
+      - data-net
+    volumes:
+      - cache_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  message-queue:
+    image: rabbitmq:3-management
+    container_name: message-queue
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin123
+    volumes:
+      - mq_data:/var/lib/rabbitmq
+    networks:
+      - data-net
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  # ============== MICROSERVEIS ==============
+  product-service:
+    build: ./product-service
+    container_name: product-service
+    environment:
+      DB_HOST: db-products
+      DB_USER: appuser
+      DB_PASSWORD: apppass123
+      DB_NAME: products_db
+      REDIS_HOST: cache
+    networks:
+      - backend-net
+      - data-net
+    depends_on:
+      db-products:
+        condition: service_healthy
+      cache:
+        condition: service_healthy
+
+  order-service:
+    build: ./order-service
+    container_name: order-service
+    environment:
+      DB_PRODUCTS_HOST: db-products
+      DB_ORDERS_HOST: db-orders
+      DB_USER: appuser
+      DB_PASSWORD: apppass123
+      MQ_HOST: message-queue
+      MQ_USER: admin
+      MQ_PASS: admin123
+    networks:
+      - backend-net
+      - data-net
+    depends_on:
+      db-products:
+        condition: service_healthy
+      db-orders:
+        condition: service_healthy
+      message-queue:
+        condition: service_healthy
+
+  user-service:
+    build: ./user-service
+    container_name: user-service
+    environment:
+      DB_HOST: db-orders
+      DB_USER: appuser
+      DB_PASSWORD: apppass123
+      DB_NAME: orders_db
+      JWT_SECRET: clausecreta_2asix
+    networks:
+      - backend-net
+      - data-net
+    depends_on:
+      db-orders:
+        condition: service_healthy
+
+  notification-service:
+    build: ./notification-service
+    container_name: notification-service
+    environment:
+      MQ_HOST: message-queue
+      MQ_USER: admin
+      MQ_PASS: admin123
+    networks:
+      - data-net
+    depends_on:
+      message-queue:
+        condition: service_healthy
+
+  # ============== GATEWAY I FRONTEND ==============
+  api-gateway:
+    build: ./api-gateway
+    container_name: api-gateway
+    networks:
+      - frontend-net
+      - backend-net
+    depends_on:
+      - product-service
+      - order-service
+      - user-service
+
+  frontend:
+    build: ./frontend
+    container_name: frontend
+    ports:
+      - "8080:80"
+    networks:
+      - frontend-net
+    depends_on:
+      - api-gateway
+
+# ============== XARXES ==============
+networks:
+  frontend-net:
+    driver: bridge
+  backend-net:
+    driver: bridge
+  data-net:
+    driver: bridge
+
+# ============== VOLUMS ==============
+volumes:
+  db_products_data:
+  db_orders_data:
+  cache_data:
+  mq_data:
+
+# ============== SECRETS ==============
+secrets:
+  db_root_password:
+    file: ./secrets/db_root_password.txt
+  db_user_password:
+    file: ./secrets/db_user_password.txt

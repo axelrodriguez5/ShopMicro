@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+  namespace: shopmicro
+  labels:
+    app: notification-service
+spec:
+  replicas: 1                                # només 1, és consumidor
+  selector:
+    matchLabels:
+      app: notification-service
+  template:
+    metadata:
+      labels:
+        app: notification-service
+    spec:
+      containers:
+      - name: notification-service
+        image: arodriguez5/shopmicro-notification-service:1.1
+        imagePullPolicy: Always
+        env:
+        - name: MQ_HOST
+          valueFrom: { configMapKeyRef: { name: app-config, key: MQ_HOST } }
+        - name: MQ_USER
+          valueFrom: { secretKeyRef: { name: rabbitmq-credentials, key: username } }
+        - name: MQ_PASS
+          valueFrom: { secretKeyRef: { name: rabbitmq-credentials, key: password } }

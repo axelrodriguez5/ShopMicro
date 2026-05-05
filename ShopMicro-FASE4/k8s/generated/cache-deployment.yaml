@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cache
+  namespace: shopmicro
+  labels:
+    app: cache
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cache
+  template:
+    metadata:
+      labels:
+        app: cache
+    spec:
+      containers:
+      - name: redis
+        image: redis:7-alpine
+        ports:
+        - containerPort: 6379
+        readinessProbe:
+          exec:
+            command: ["redis-cli", "ping"]
+          periodSeconds: 5
+        livenessProbe:
+          exec:
+            command: ["redis-cli", "ping"]
+          periodSeconds: 10
