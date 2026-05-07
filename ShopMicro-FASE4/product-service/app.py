@@ -3,6 +3,8 @@ import mysql.connector, redis, json, os, time
 
 app = Flask(__name__)
 
+VERSION = "1.2"
+
 def read_secret(name, fallback_env=None):
     """Llegeix un secret de /run/secrets/<name>.
     Si no existeix, llegeix de la variable d'entorn (per compatibilitat amb Compose)."""
@@ -23,7 +25,7 @@ def init_db():
             conn = mysql.connector.connect(
                 host=os.environ['DB_HOST'],
                 user=os.environ['DB_USER'],
-                password=DB_PASSWORD,                 # ← canviat
+                password=DB_PASSWORD,
                 database=os.environ['DB_NAME'])
             cur = conn.cursor()
             cur.execute("""CREATE TABLE IF NOT EXISTS products(
@@ -51,7 +53,7 @@ def list_products():
         return jsonify({"source": "cache", "data": json.loads(cached)})
     conn = mysql.connector.connect(
         host=os.environ['DB_HOST'], user=os.environ['DB_USER'],
-        password=DB_PASSWORD,                          # ← canviat
+        password=DB_PASSWORD,
         database=os.environ['DB_NAME'])
     cur = conn.cursor(dictionary=True)
     cur.execute("SELECT * FROM products")
@@ -64,6 +66,11 @@ def list_products():
 @app.route('/health')
 def health(): return {"status": "ok"}
 
+@app.route('/version')                                       # ← 1.2
+def version():                                               # ← 1.2
+    return jsonify({"service": "product-service", "version": VERSION})
+
 if __name__ == '__main__':
+    print(f"[startup] Product Service v{VERSION} starting...", flush=True)  # ← 1.2
     init_db()
     app.run(host='0.0.0.0', port=5000)

@@ -20,12 +20,12 @@ async function registerUser() {
         });
         const data = await res.json();
         if (res.ok) {
-            showResult('user-result', `✅ ${data.message}: ${data.username}`, 'success');
+            showResult('user-result', ` ${data.message}: ${data.username}`, 'success');
         } else {
-            showResult('user-result', `❌ ${data.error}`, 'error');
+            showResult('user-result', ` ${data.error}`, 'error');
         }
     } catch (e) {
-        showResult('user-result', `❌ Error de xarxa: ${e.message}`, 'error');
+        showResult('user-result', ` Error de xarxa: ${e.message}`, 'error');
     }
 }
 
@@ -44,13 +44,13 @@ async function loginUser() {
             currentUser = username;
             document.getElementById('user-status').textContent = `✓ Sessió: ${username}`;
             showResult('user-result',
-                `✅ Login correcte\nToken JWT (primers 40 caràcters):\n${data.token.substring(0, 40)}...`,
+                ` Login correcte\nToken JWT (primers 40 caràcters):\n${data.token.substring(0, 40)}...`,
                 'success');
         } else {
-            showResult('user-result', `❌ ${data.error}`, 'error');
+            showResult('user-result', ` ${data.error}`, 'error');
         }
     } catch (e) {
-        showResult('user-result', `❌ Error de xarxa: ${e.message}`, 'error');
+        showResult('user-result', ` Error de xarxa: ${e.message}`, 'error');
     }
 }
 
@@ -64,10 +64,10 @@ async function loadProducts() {
         const badge = document.getElementById('products-source');
         if (data.source === 'cache') {
             badge.className = 'badge cache';
-            badge.textContent = '⚡ Origen: Redis (cache)';
+            badge.textContent = ' Origen: Redis (cache)';
         } else {
             badge.className = 'badge db';
-            badge.textContent = '🗄️ Origen: db-products (MySQL)';
+            badge.textContent = ' Origen: db-products (MySQL)';
         }
 
         // Pintem la llista
@@ -119,21 +119,21 @@ async function createOrder() {
 
         if (res.ok) {
             showResult('order-result',
-                `✅ ${data.message}\n` +
+                ` ${data.message}\n` +
                 `ID comanda: ${data.order.order_id}\n` +
                 `Producte: ${data.order.product_name}\n` +
                 `Quantitat: ${data.order.quantity}\n\n` +
-                `📨 Missatge publicat a RabbitMQ\n` +
-                `📝 Mira els logs: docker compose logs notification-service`,
+                ` Missatge publicat a RabbitMQ\n` +
+                ` Mira els logs: docker compose logs notification-service`,
                 'success');
             // Refresquem productes (l'stock ha canviat) i historial
             loadProducts();
             loadOrders();
         } else {
-            showResult('order-result', `❌ ${data.error}`, 'error');
+            showResult('order-result', ` ${data.error}`, 'error');
         }
     } catch (e) {
-        showResult('order-result', `❌ Error: ${e.message}`, 'error');
+        showResult('order-result', ` Error: ${e.message}`, 'error');
     }
 }
 

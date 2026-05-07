@@ -30,7 +30,7 @@ spec:
             echo "api-gateway disponible!"
       containers:
       - name: frontend
-        image: arodriguez5/shopmicro-frontend:1.0
+        image: arodriguez5/shopmicro-frontend:1.1
         imagePullPolicy: Always
         ports:
         - containerPort: 80

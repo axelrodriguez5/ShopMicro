@@ -41,8 +41,12 @@ spec:
         ports:
         - containerPort: 80
         readinessProbe:
-          httpGet: { path: /, port: 80 }
-          periodSeconds: 5
-        livenessProbe:
-          httpGet: { path: /, port: 80 }
+          tcpSocket:
+            port: 80
+          initialDelaySeconds: 15
           periodSeconds: 10
+        livenessProbe:
+          tcpSocket:
+            port: 80
+          initialDelaySeconds: 60
+          periodSeconds: 30

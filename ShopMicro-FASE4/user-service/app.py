@@ -22,7 +22,7 @@ def get_conn():
     return mysql.connector.connect(
         host=os.environ['DB_HOST'],
         user=os.environ['DB_USER'],
-        password=DB_PASSWORD,                          # ← canviat
+        password=DB_PASSWORD,                          
         database=os.environ['DB_NAME'])
 
 def init_db():

@@ -6,7 +6,7 @@ metadata:
   labels:
     app: product-service
 spec:
-  replicas: 2                                # ← múltiples rèpliques
+  replicas: 2                                # múltiples rèpliques
   selector:
     matchLabels:
       app: product-service
@@ -22,8 +22,8 @@ spec:
     spec:
       containers:
       - name: product-service
-        image: arodriguez5/shopmicro-product-service:1.1
-        imagePullPolicy: Always              # ← important per al rolling update
+        image: arodriguez5/shopmicro-product-service:1.2
+        imagePullPolicy: Always              # rolling update
         ports:
         - containerPort: 5000
         env:
@@ -47,12 +47,12 @@ spec:
             configMapKeyRef:
               name: app-config
               key: REDIS_HOST
-        - name: DB_PASSWORD                  # ← des del Secret!
+        - name: DB_PASSWORD                  # des del Secret
           valueFrom:
             secretKeyRef:
               name: db-credentials
               key: user-password
-        readinessProbe:                      # ← treu el pod de servei si no està llest
+        readinessProbe:                      # treu el pod de servei si no està llest
           httpGet:
             path: /health
             port: 5000
@@ -60,7 +60,7 @@ spec:
           periodSeconds: 5
           timeoutSeconds: 3
           failureThreshold: 3
-        livenessProbe:                       # ← reinicia el pod si no respon
+        livenessProbe:                       # reinicia el pod si no respon
           httpGet:
             path: /health
             port: 5000
